@@ -134,7 +134,7 @@ fun ConfigScreen(
             Spacer(Modifier.height(24.dp))
             val (dateFormat, timeFormat) = getDateTimeFormat()
 
-            val (hexForeground, hexBackground) = GetHexColors()
+            val (foreground, background) = getColors()
 
             Button(
                 enabled = ssidError == null && passwordError == null && ssid.isNotBlank() && password.isNotBlank() && connected,
@@ -161,8 +161,8 @@ fun ConfigScreen(
                             )
                         )
 
-                        put("foreground_color", hexForeground)
-                        put("background_color", hexBackground)
+                        put("foreground_color", foreground)
+                        put("background_color", background)
                     }
                     val jsonString = jsonObj.toString()
                     viewModel.connection.writeCredentials(jsonString)
@@ -199,11 +199,20 @@ fun Color.toHex(includeAlpha: Boolean = true): String {
     }
 }
 
+fun Color.toRgbInt(): Int {
+    // Convert the float components (0.0 to 1.0) to 0-255 range and pack them into an Int
+    val r = (red * 255).toInt()
+    val g = (green * 255).toInt()
+    val b = (blue * 255).toInt()
+    return (r shl 16) or (g shl 8) or b
+}
+
 @Composable
-fun GetHexColors(): Pair<String, String> {
+fun getColors(): Pair<Int, Int> {
     val colorScheme = MaterialTheme.colorScheme
-    val bgHex = colorScheme.background.toHex()
-    val fgHex = colorScheme.onBackground.toHex()
-    return fgHex to bgHex
+    val bg = colorScheme.background
+    val fg = colorScheme.onBackground
+
+    return Pair(fg.toRgbInt(), bg.toRgbInt())
 }
 
