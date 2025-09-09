@@ -39,17 +39,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        viewModel.connect {
-            onDisconnect()
-        }
-
         setContent {
             CheckPermissions {
+                viewModel.connect {
+                    onDisconnect()
+                }
+
                 TimeServerConfiguratorTheme {
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         ConfigScreen(
                             modifier = Modifier.padding(innerPadding),
-                            viewModel = viewModel
+                            viewModel = viewModel,
+                            context = this
                         )
                     }
                 }
