@@ -69,20 +69,6 @@ data class ThemeColors(
     @ColorInt val background: Int
 )
 
-fun getThemeColors(context: Context): ThemeColors {
-    val typedValue = TypedValue()
-
-    // Resolve foreground/text color - using android:textColorPrimary as an example
-    context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
-    val foregroundColor = typedValue.data
-
-    // Resolve background color - using android:windowBackground as an example
-    context.theme.resolveAttribute(android.R.attr.windowBackground, typedValue, true)
-    val backgroundColor = typedValue.data
-
-    return ThemeColors(foreground = foregroundColor, background = backgroundColor)
-}
-
 @Composable
 fun ConfigScreen(
     modifier: Modifier = Modifier,
