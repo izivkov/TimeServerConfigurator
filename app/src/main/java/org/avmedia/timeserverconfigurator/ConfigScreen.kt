@@ -55,8 +55,7 @@ fun getDateTimeFormat(): Pair<DateFormat, TimeFormat> {
 fun temperatureUnitByCountry(countryCode: String): String {
     // List of country codes where Fahrenheit is used
     val fahrenheitCountries = setOf(
-        "US", "LR", "MH", "VI", "FM", "KY", "BS", "BZ", "PW", "PR", "CY", "TC",
-        "AG", "KN", "VG", "AS", "MP", "MS"
+        "US", "VI", "PR", "AS", "MP"
     )
     return if (fahrenheitCountries.contains(countryCode.uppercase())) {
         "F"
