@@ -16,8 +16,8 @@ class Connection(private val context: Context) {
 
     companion object {
         private const val TAG = "BleConnector"
-        private val SERVICE_UUID = java.util.UUID.fromString("12345678-1234-5678-1234-56789abcdef0")
-        private val CHAR_UUID = java.util.UUID.fromString("abcdefab-1234-5678-1234-56789abcdef0")
+        private val CONFIG_SERVICE_UUID = java.util.UUID.fromString("00001001-0000-1000-8000-00805F9B34FB")
+        private val CONFIG_CHAR_UUID = java.util.UUID.fromString("00001002-0000-1000-8000-00805F9B34FB")
     }
 
     lateinit var onConnected: () -> Unit
@@ -63,9 +63,9 @@ class Connection(private val context: Context) {
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                val service = gatt?.getService(SERVICE_UUID)
+                val service = gatt?.getService(CONFIG_SERVICE_UUID)
                 if (service != null) {
-                    characteristic = service.getCharacteristic(CHAR_UUID)
+                    characteristic = service.getCharacteristic(CONFIG_CHAR_UUID)
                     if (characteristic != null) {
                         Timber.i("Characteristic found, ready for data")
                     } else {
@@ -133,7 +133,7 @@ class Connection(private val context: Context) {
         onDeviceFoundCallback = onDeviceFound // Save lambda
 
         val filters = listOf(
-            // ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build()
+            // ScanFilter.Builder().setServiceUuid(ParcelUuid(CONFIG_SERVICE_UUID)).build()
             ScanFilter.Builder().setDeviceName("TimeServer").build()
         )
         val settings = ScanSettings.Builder()
@@ -143,6 +143,7 @@ class Connection(private val context: Context) {
         scanCallback = object : ScanCallback() {
             @SuppressLint("MissingPermission")
             override fun onScanResult(callbackType: Int, result: ScanResult?) {
+
                 result?.device?.let { device ->
                     bluetoothLeScanner.stopScan(this)
                     scanHandler.removeCallbacks(scanTimeoutRunnable) // Cancel timeout

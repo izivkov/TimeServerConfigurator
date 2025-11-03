@@ -61,4 +61,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.timber)
+
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("com.google.code.gson:gson:2.8.9")
 }

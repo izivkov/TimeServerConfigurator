@@ -3,7 +3,6 @@ package org.avmedia.timeserverconfigurator
 import ConnectionViewModel
 import android.content.Context
 import android.telephony.TelephonyManager
-import android.util.TypedValue
 import androidx.annotation.ColorInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,12 @@ import androidx.core.content.ContextCompat.getSystemService
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
 
 enum class DateFormat { DAY_MONTH, MONTH_DAY }
 enum class TimeFormat { TWELVE_HOURS, TWENTY_FOUR_HOURS }
@@ -103,6 +108,8 @@ fun ConfigScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            var passwordVisible by remember { mutableStateOf(false) }
+
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -110,9 +117,16 @@ fun ConfigScreen(
                     passwordError = if (it.length < 8) "Min 8 characters" else null
                 },
                 label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 isError = passwordError != null,
                 modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        val icon = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
+                        val desc = if (passwordVisible) "Hide password" else "Show password"
+                        Icon(imageVector = icon, contentDescription = desc)
+                    }
+                },
                 supportingText = { passwordError?.let { Text(it, color = Color.Red) } }
             )
 
