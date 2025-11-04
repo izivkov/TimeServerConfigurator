@@ -1,7 +1,7 @@
 // kotlin
 package org.avmedia.timeserverconfigurator
 
-import ConnectionViewModel
+import ConfigViewModel
 import LogsScreen
 import LogsViewModel
 import android.Manifest
@@ -34,13 +34,11 @@ import org.avmedia.timeserverconfigurator.ui.theme.TimeServerConfiguratorTheme
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.vector.ImageVector
-import parseLogEntries
 
+@RequiresApi(Build.VERSION_CODES.O)
 class MainActivity : ComponentActivity() {
 
-    private lateinit var advertiser: Advertiser
-
-    private val viewModel: ConnectionViewModel by viewModels {
+    private val configViewModel: ConfigViewModel by viewModels {
         ViewModelFactory(this) // 'this' is a Context
     }
 
@@ -53,9 +51,9 @@ class MainActivity : ComponentActivity() {
     ) : ViewModelProvider.Factory {
         @RequiresApi(Build.VERSION_CODES.O)
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(ConnectionViewModel::class.java)) {
+            if (modelClass.isAssignableFrom(ConfigViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return ConnectionViewModel(context) as T
+                return ConfigViewModel(context) as T
             }
             if (modelClass.isAssignableFrom(LogsViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
@@ -70,27 +68,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        advertiser = Advertiser(this, "TimeServerConfigurator")
-
         setContent {
             CheckPermissions {
-                advertiser.startAdvertising()
 
-                advertiser.startGattServer {
-                    data: ByteArray ->
-                        val dataStr = String(data, Charsets.UTF_8)
-                        logsViewModel.clearAll()
-
-                        val logs = parseLogEntries(dataStr)
-                        for (log in logs) {
-                            logsViewModel.addLogEntry(log)
-                        }
-
-                        println("received: $dataStr")
+                logsViewModel.connect {
+                    println("Disconnected from LogsViewModel")
                 }
 
-                viewModel.connect {
-                    onDisconnect()
+                configViewModel.connect {
+                    onConfigDisconnect()
                 }
 
                 TimeServerConfiguratorTheme {
@@ -115,7 +101,7 @@ class MainActivity : ComponentActivity() {
                             BottomNavItem.Settings.route -> {
                                 ConfigScreen(
                                     modifier = Modifier.padding(innerPadding),
-                                    viewModel = viewModel,
+                                    viewModel = configViewModel,
                                     context = this
                                 )
                             }
@@ -141,14 +127,14 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
-        advertiser.stopAdvertising()
-        viewModel.disconnect()
+        logsViewModel.disconnect()
+        configViewModel.disconnect()
     }
 
-    private fun onDisconnect() {
+    private fun onConfigDisconnect() {
         println("onDisconnect called in MainActivity")
-        viewModel.connect {
-            onDisconnect()
+        configViewModel.connect {
+            onConfigDisconnect()
         }
     }
 }

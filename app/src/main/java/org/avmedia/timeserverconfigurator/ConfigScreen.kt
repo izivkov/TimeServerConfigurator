@@ -1,6 +1,6 @@
 package org.avmedia.timeserverconfigurator
 
-import ConnectionViewModel
+import ConfigViewModel
 import android.content.Context
 import android.telephony.TelephonyManager
 import androidx.annotation.ColorInt
@@ -77,7 +77,7 @@ data class ThemeColors(
 @Composable
 fun ConfigScreen(
     modifier: Modifier = Modifier,
-    viewModel: ConnectionViewModel,
+    viewModel: ConfigViewModel,
     context: Context
 ) {
     val connected = viewModel.isConnected

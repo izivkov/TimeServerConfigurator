@@ -14,6 +14,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.avmedia.timeserverconfigurator.Advertiser
 import java.lang.reflect.Type
 import java.time.LocalDateTime
 
@@ -27,12 +28,55 @@ data class LogEntry(
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
+@SuppressLint("MissingPermission")
+
 class LogsViewModel(
     context: Context
 ) : ViewModel() {
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs
+
+    private val advertiser = Advertiser(context, "TimeServerConfigurator")
+
+    private val _connected = MutableStateFlow(false)
+    val connected: StateFlow<Boolean> = _connected
+
+    private var advertisingStartTime = 0L
+
+    init {
+        _logs.value = emptyList()
+        _connected.value = false
+    }
+
+    @SuppressLint("MissingPermission")
+    fun connect(onDisconnected: () -> Unit) {
+        advertiser.startAdvertising()
+        _connected.value = true
+        advertisingStartTime = System.currentTimeMillis()
+
+        clearAll()
+        advertiser.startGattServer { data: ByteArray ->
+            val dataStr = String(data, Charsets.UTF_8)
+
+            val logs = parseLogEntries(dataStr)
+            for (log in logs) {
+                addLogEntry(log)
+            }
+
+            println("received: $dataStr")
+            disconnect()
+        }
+    }
+
+
+    fun refreshLogs() {
+        viewModelScope.launch {
+            connect() {
+                // onDisconnected
+            }
+        }
+    }
 
     fun addLogEntry(entry: LogEntry) {
         viewModelScope.launch {
@@ -46,9 +90,11 @@ class LogsViewModel(
         }
     }
 
-    init {
-        _logs.value = emptyList<LogEntry>() // sampleLogs()
-        // _logs.value = sampleLogs()
+    @SuppressLint("MissingPermission")
+    fun disconnect() {
+        // advertiser.stopAdvertising()
+        advertiser.stopGattServer ()
+        _connected.value = false
     }
 }
 

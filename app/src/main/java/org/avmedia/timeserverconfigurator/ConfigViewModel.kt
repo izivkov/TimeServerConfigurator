@@ -7,7 +7,7 @@ import android.bluetooth.BluetoothDevice
 import android.content.Context
 import org.avmedia.timeserverconfigurator.Connection
 
-class ConnectionViewModel(
+class ConfigViewModel(
     context: Context
 ) : ViewModel() {
 

@@ -74,6 +74,25 @@ class Advertiser(private val context: Context, private val tag: String = "TimeSe
         }
     }
 
+    @SuppressLint("MissingPermission")
+    fun stopGattServer() {
+        try {
+            // Stop advertising if ongoing
+            try {
+                callback?.let { advertiser?.stopAdvertising(it) }
+            } catch (e: Exception) {
+                Timber.tag(tag).w(e, "Error stopping advertising")
+            }
+
+            // Close GATT server
+            gattServer?.close()
+            gattServer = null
+            Timber.tag(tag).d("GATT server stopped and cleaned up")
+        } catch (e: Exception) {
+            Timber.tag(tag).w(e, "Exception during stopGattServer()")
+        }
+    }
+
     private val gattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
