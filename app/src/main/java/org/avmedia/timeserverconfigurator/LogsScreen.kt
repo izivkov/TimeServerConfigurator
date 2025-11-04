@@ -26,12 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.unit.dp
 import java.time.format.DateTimeFormatter
-
 @RequiresApi(Build.VERSION_CODES.O)
 private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/dd h:mm:ss a")
-
 @SuppressLint("NewApi")
 @Composable
 fun LogsScreen(
@@ -63,12 +63,12 @@ fun LogsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
                     onClick = { logsViewModel.refreshLogs() },
-                    enabled = !connected // disabled when connected
+                    enabled = !connected, // disabled when connected
                 ) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
                     Spacer(modifier = Modifier.width(8.dp))
@@ -140,7 +140,7 @@ private fun LogRow(entry: LogEntry) {
 
             entry.message?.let {
                 Text(
-                    text = it,
+                    text = AnnotatedString.fromHtml(it),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
