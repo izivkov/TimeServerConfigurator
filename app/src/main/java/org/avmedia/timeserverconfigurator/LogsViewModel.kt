@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.avmedia.timeserverconfigurator.Advertiser
+import org.avmedia.timeserverconfigurator.Utils
 import java.lang.reflect.Type
 import java.time.LocalDateTime
 
@@ -60,15 +61,13 @@ class LogsViewModel(
             val dataStr = String(data, Charsets.UTF_8)
 
             val logs = parseLogEntries(dataStr)
+            clearAll()
             for (log in logs) {
                 addLogEntry(log)
             }
-
-            println("received: $dataStr")
-            disconnect()
+            _connected.value = false
         }
     }
-
 
     fun refreshLogs() {
         viewModelScope.launch {
@@ -92,7 +91,6 @@ class LogsViewModel(
 
     @SuppressLint("MissingPermission")
     fun disconnect() {
-        // advertiser.stopAdvertising()
         advertiser.stopGattServer ()
         _connected.value = false
     }
@@ -133,6 +131,13 @@ fun parseLogEntries(jsonString: String): List<LogEntry> {
         .create()
 
     val listType = object : TypeToken<List<LogEntry>>() {}.type
+
+    if (Utils.isValidJson(jsonString).not()) {
+        println("Invalid JSON format:")
+        println("JSON String: $jsonString")
+        return emptyList()
+    }
+
     val logEntries: List<LogEntry> = gson.fromJson(jsonString, listType)
     return logEntries.sortedByDescending { it.datetime }
 }

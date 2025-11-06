@@ -18,7 +18,11 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.os.ParcelUuid
 import androidx.annotation.RequiresPermission
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import timber.log.Timber
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 
 class Advertiser(private val context: Context, private val tag: String = "TimeServerAdvertiser") {
@@ -94,16 +98,27 @@ class Advertiser(private val context: Context, private val tag: String = "TimeSe
     }
 
     private val gattServerCallback = object : BluetoothGattServerCallback() {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 println("Central connected: ${device.address}")
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 println("Central disconnected: ${device.address}")
+                // Reset data transfer state on disconnect
+                stopAdvertising()
+                resetDataReceptionState()
             }
         }
 
-        @SuppressLint("MissingPermission")
-        private var receivedBytes = ByteArray(0)
+        // State for managing chunked data transfer
+        private var dataBuffer = mutableListOf<Byte>()
+        private var expectedDataLength: Int? = null
+
+        private fun resetDataReceptionState() {
+            dataBuffer.clear()
+            expectedDataLength = null
+            Timber.tag(tag).d("Data reception state has been reset.")
+        }
 
         @SuppressLint("MissingPermission")
         override fun onCharacteristicWriteRequest(
@@ -115,19 +130,47 @@ class Advertiser(private val context: Context, private val tag: String = "TimeSe
             offset: Int,
             value: ByteArray?
         ) {
-            value?.let { chunk ->
-                receivedBytes += chunk
-                if (receivedBytes.size >= 4) {
-                    val totalLength = ((receivedBytes[0].toInt() and 0xFF) shl 24) or
-                            ((receivedBytes[1].toInt() and 0xFF) shl 16) or
-                            ((receivedBytes[2].toInt() and 0xFF) shl 8) or
-                            (receivedBytes[3].toInt() and 0xFF)
-                    if (receivedBytes.size - 4 >= totalLength) {
-                        val completeData = receivedBytes.copyOfRange(4, 4 + totalLength)
-                        onDataReceived(completeData)
-                        receivedBytes = ByteArray(0)
-                        stopAdvertising()
+            val chunk = value ?: return // Ignore null value writes
+
+            // State 1: Waiting for the 4-byte length header.
+            // This is the ONLY time we check the chunk size for the header.
+            if (expectedDataLength == null) {
+                if (chunk.size == 4) {
+                    // Use ByteBuffer for safe and clear endian-handling
+                    val length = ByteBuffer.wrap(chunk).order(ByteOrder.BIG_ENDIAN).int
+                    if (length <= 0) {
+                        Timber.tag(tag).e("Received invalid data length: $length. Resetting.")
+                        resetDataReceptionState()
+                    } else {
+                        expectedDataLength = length
+                        dataBuffer.clear() // Ensure buffer is empty before starting accumulation
+                        Timber.tag(tag).i("Expecting $length bytes of data.")
                     }
+                } else {
+                    Timber.tag(tag).w("Received a chunk of size ${chunk.size}, but was expecting the 4-byte length header first. Ignoring.")
+                }
+            }
+            // State 2: Accumulating data chunks.
+            // We enter this state AFTER the length has been received and will not check chunk size again.
+            else {
+                dataBuffer.addAll(chunk.toList())
+                Timber.tag(tag).d("Received chunk of ${chunk.size} bytes. Total received: ${dataBuffer.size}/${expectedDataLength}")
+
+                // Check if all data has been received
+                val totalExpected = expectedDataLength
+                if (totalExpected != null && dataBuffer.size >= totalExpected) {
+                    val completeData = dataBuffer.take(totalExpected).toByteArray()
+                    val jsonString = String(completeData, Charsets.UTF_8)
+
+                    Timber.tag(tag).d("All data received. Verifying JSON...")
+                    try {
+                        onDataReceived(completeData)
+                    } finally {
+                        stopGattServer()
+                    }
+
+                    // Reset for the next potential message, regardless of success
+                    resetDataReceptionState()
                 }
             }
 
