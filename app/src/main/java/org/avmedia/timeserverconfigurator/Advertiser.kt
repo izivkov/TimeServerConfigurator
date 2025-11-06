@@ -104,8 +104,8 @@ class Advertiser(private val context: Context, private val tag: String = "TimeSe
                 println("Central connected: ${device.address}")
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 println("Central disconnected: ${device.address}")
-                // Reset data transfer state on disconnect
                 stopAdvertising()
+                // Reset data transfer state on disconnect
                 resetDataReceptionState()
             }
         }
@@ -166,7 +166,7 @@ class Advertiser(private val context: Context, private val tag: String = "TimeSe
                     try {
                         onDataReceived(completeData)
                     } finally {
-                        stopGattServer()
+                        println("All data processed.")
                     }
 
                     // Reset for the next potential message, regardless of success

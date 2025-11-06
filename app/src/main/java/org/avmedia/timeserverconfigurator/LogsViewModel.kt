@@ -71,9 +71,7 @@ class LogsViewModel(
 
     fun refreshLogs() {
         viewModelScope.launch {
-            connect() {
-                // onDisconnected
-            }
+            // connect()
         }
     }
 

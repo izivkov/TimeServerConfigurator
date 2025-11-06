@@ -59,22 +59,22 @@ fun LogsScreen(
                     LogRow(entry)
                 }
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { logsViewModel.refreshLogs() },
-                    enabled = !connected, // disabled when connected
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Refresh")
-                }
-            }
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 16.dp, vertical = 8.dp),
+//                horizontalArrangement = Arrangement.End,
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                Button(
+//                    onClick = { logsViewModel.refreshLogs() },
+//                    enabled = !connected, // disabled when connected
+//                ) {
+//                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+//                    Spacer(modifier = Modifier.width(8.dp))
+//                    Text("Refresh")
+//                }
+//            }
         }
 
         if (logs.isEmpty() && connected) {
