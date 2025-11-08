@@ -5,13 +5,16 @@ package org.avmedia.loggerble // Make sure package is correct
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import no.nordicsemi.android.ble.BleManager
 import no.nordicsemi.android.ble.observer.ConnectionObserver
 import timber.log.Timber
 
-class LoggerBleManager(context: android.content.Context) : BleManager(context) {
+class LoggerBleManager(
+    context: Context,
+) : BleManager(context) {
 
     // This characteristic is private. Only the manager should interact with it directly.
     private var logCharacteristic: BluetoothGattCharacteristic? = null
@@ -19,6 +22,9 @@ class LoggerBleManager(context: android.content.Context) : BleManager(context) {
     // This flow is public, so the ViewModel can observe it for data.
     private val _logs = MutableStateFlow<String?>(null)
     val logs = _logs.asStateFlow()
+
+    private val _connected = MutableStateFlow(false)
+    val connected = _connected.asStateFlow()
 
     private var connectionObserver = object : ConnectionObserver {
         override fun onDeviceConnecting(device: BluetoothDevice) {
@@ -28,6 +34,7 @@ class LoggerBleManager(context: android.content.Context) : BleManager(context) {
         override fun onDeviceConnected(device: BluetoothDevice) {
             Timber.d("Connected to device: ${device.address}")
             // You can start enabling notifications here if not done already
+            _connected.value = true
         }
 
         override fun onDeviceFailedToConnect(device: BluetoothDevice, reason: Int) {
@@ -36,6 +43,13 @@ class LoggerBleManager(context: android.content.Context) : BleManager(context) {
 
         override fun onDeviceReady(device: BluetoothDevice) {
             println("onDeviceReady")
+
+            writeCharacteristic(
+                logCharacteristic,
+                "START".toByteArray(),
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            ).enqueue()
+
         }
 
         override fun onDeviceDisconnecting(device: BluetoothDevice) {
@@ -45,6 +59,7 @@ class LoggerBleManager(context: android.content.Context) : BleManager(context) {
         override fun onDeviceDisconnected(device: BluetoothDevice, reason: Int) {
             Timber.i("Disconnected from device: ${device.address}, reason: $reason")
             // You can notify UI or clean up resources here
+            _connected.value = false
         }
     }
 

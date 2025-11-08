@@ -59,24 +59,22 @@ fun LogsScreen(
                     LogRow(entry)
                 }
             }
-            /*
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { logsViewModel.refreshLogs() },
-                    enabled = !connected, // disabled when connected
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Refresh")
-                }
-            }
-             */
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 16.dp, vertical = 8.dp),
+//                horizontalArrangement = Arrangement.End,
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                Button(
+//                    onClick = { logsViewModel.refreshLogs() },
+//                    enabled = !connected, // disabled when connected
+//                ) {
+//                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+//                    Spacer(modifier = Modifier.width(8.dp))
+//                    Text("Refresh")
+//                }
+//            }
         }
 
         if (logs.isEmpty() && connected) {
@@ -105,47 +103,47 @@ fun LogsScreen(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun LogRow(entry: LogEntry) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = entry.datetime.format(timeFormatter),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                entry.statusCode?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF1E88E5) // blue-ish badge color
+                    )
+                }
+            }
 
-Card(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp)
-) {
-    Column(modifier = Modifier.padding(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = entry.datetime.format(timeFormatter),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-            entry.statusCode?.let {
+            Spacer(modifier = Modifier.height(6.dp))
+
+            entry.activityName?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF1E88E5) // blue-ish badge color
+                    style = MaterialTheme.typography.titleSmall
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        entry.activityName?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.titleSmall
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        entry.message?.let {
-            Text(
-                text = AnnotatedString.fromHtml(it),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            entry.message?.let {
+                Text(
+                    text = AnnotatedString.fromHtml(it),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }

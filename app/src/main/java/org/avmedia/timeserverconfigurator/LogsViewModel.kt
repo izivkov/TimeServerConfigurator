@@ -1,9 +1,21 @@
 import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothDevice
+import android.media.MediaDrm
+import android.util.JsonReader
+import android.util.JsonToken
+import android.util.JsonWriter
+import androidx.compose.ui.input.key.type
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -12,13 +24,25 @@ import no.nordicsemi.android.support.v18.scanner.ScanCallback
 import no.nordicsemi.android.support.v18.scanner.ScanResult
 import no.nordicsemi.android.support.v18.scanner.ScanSettings
 import org.avmedia.loggerble.LoggerBleManager
+import org.avmedia.timeserverconfigurator.Utils
 import timber.log.Timber
+import java.io.IOException
+import java.time.LocalDateTime
 
-// Renamed class to match the file name
+data class LogEntry(
+    val datetime: LocalDateTime,
+    @SerializedName("activity_name") val activityName: String?,
+    val message: String?,
+    @SerializedName("status_code") val statusCode: String?
+)
+
 class LogsViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val context = app.applicationContext
-    private val manager = LoggerBleManager(context)
+    private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
+    val logs: StateFlow<List<LogEntry>> = _logs
+
+    private val manager = LoggerBleManager(app.applicationContext)
+    val connected = manager.connected
 
     // Keep a reference to the scanner and callback to be able to stop the scan
     private val scanner = BluetoothLeScannerCompat.getScanner()
@@ -66,6 +90,7 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    var accumulatedData = ""
     @SuppressLint("MissingPermission")
     private fun connectToDevice(device: BluetoothDevice) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -84,8 +109,37 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
                 logData?.let {
                     // Using Timber for logging consistency
                     println("📥 Logs from ESP32: $it")
+                    accumulatedData += it
+                    if (Utils.isValidJson(accumulatedData)) {
+                        onDataReceived(accumulatedData)
+                        accumulatedData = ""
+                    }
                 }
             }.launchIn(viewModelScope) // Launch in the viewModelScope
+        }
+    }
+
+    private fun onDataReceived(jsonString: String) {
+        Timber.d("Attempting to parse JSON log object: $jsonString")
+        val gson = Gson()
+
+        try {
+            // Parse a single LogEntry object instead of a list
+            val newLog: LogEntry = gson.fromJson(jsonString, LogEntry::class.java)
+
+            // Append the new log to the existing list in _logs
+            val updatedLogs = _logs.value.toMutableList().apply {
+                add(newLog)
+            }
+
+            _logs.value = updatedLogs
+
+            Timber.i("Successfully parsed and added new log: ${newLog.activity_name}")
+
+        } catch (e: JsonSyntaxException) {
+            Timber.e(e, "Failed to parse JSON string: $jsonString")
+        } catch (e: Exception) {
+            Timber.e(e, "Unexpected error while parsing log.")
         }
     }
 
