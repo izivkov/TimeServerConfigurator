@@ -6,6 +6,7 @@ import LogsScreen
 import LogsViewModel
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
             }
             if (modelClass.isAssignableFrom(LogsViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return LogsViewModel(context) as T
+                return LogsViewModel(context.applicationContext as Application ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
@@ -71,9 +72,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             CheckPermissions {
 
-                logsViewModel.connect {
-                    println("Disconnected from LogsViewModel")
-                }
+                logsViewModel.startScan()
 
                 configViewModel.connect {
                     onConfigDisconnect()

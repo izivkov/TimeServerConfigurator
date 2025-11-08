@@ -1,154 +1,103 @@
 import android.annotation.SuppressLint
-import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.bluetooth.BluetoothDevice
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonParseException
-import com.google.gson.annotations.SerializedName
-import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import org.avmedia.timeserverconfigurator.Advertiser
-import org.avmedia.timeserverconfigurator.Utils
-import java.lang.reflect.Type
-import java.time.LocalDateTime
+import no.nordicsemi.android.support.v18.scanner.BluetoothLeScannerCompat
+import no.nordicsemi.android.support.v18.scanner.ScanCallback
+import no.nordicsemi.android.support.v18.scanner.ScanResult
+import no.nordicsemi.android.support.v18.scanner.ScanSettings
+import org.avmedia.loggerble.LoggerBleManager
+import timber.log.Timber
 
-@RequiresApi(Build.VERSION_CODES.O)
+// Renamed class to match the file name
+class LogsViewModel(app: Application) : AndroidViewModel(app) {
 
-data class LogEntry(
-    val datetime: LocalDateTime,
-    @SerializedName("activity_name") val activityName: String?,
-    val message: String?,
-    @SerializedName("status_code") val statusCode: String?
-)
+    private val context = app.applicationContext
+    private val manager = LoggerBleManager(context)
 
-@RequiresApi(Build.VERSION_CODES.O)
-@SuppressLint("MissingPermission")
+    // Keep a reference to the scanner and callback to be able to stop the scan
+    private val scanner = BluetoothLeScannerCompat.getScanner()
+    private var scanCallback: ScanCallback? = null
 
-class LogsViewModel(
-    context: Context
-) : ViewModel() {
+    @SuppressLint("MissingPermission")
+    fun startScan() {
+        // Stop any previous scan
+        stopScan()
 
-    private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
-    val logs: StateFlow<List<LogEntry>> = _logs
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setReportDelay(0) // Report results immediately
+            .build()
 
-    private val advertiser = Advertiser(context, "TimeServerConfigurator")
+        scanCallback = object : ScanCallback() {
+            // Nordic scanner can return a list of results
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                // Check for the device name here as well
+                if (result.device.name == "ESP32_Logger") {
+                    stopScan()
+                    connectToDevice(result.device)
+                }
+            }
 
-    private val _connected = MutableStateFlow(false)
-    val connected: StateFlow<Boolean> = _connected
+            override fun onBatchScanResults(results: List<ScanResult>) {
+                results.firstOrNull { it.device.name == "ESP32_Logger" }?.let { result ->
+                    stopScan()
+                    connectToDevice(result.device)
+                }
+            }
 
-    private var advertisingStartTime = 0L
-
-    init {
-        _logs.value = emptyList()
-        _connected.value = false
+            override fun onScanFailed(errorCode: Int) {
+                Timber.e("Scan failed with error code: $errorCode")
+            }
+        }
+        scanner.startScan(null, settings, scanCallback!!)
     }
 
     @SuppressLint("MissingPermission")
-    fun connect(onDisconnected: () -> Unit) {
-        advertiser.startAdvertising()
-        _connected.value = true
-        advertisingStartTime = System.currentTimeMillis()
-
-        clearAll()
-        advertiser.startGattServer { data: ByteArray ->
-            val dataStr = String(data, Charsets.UTF_8)
-
-            val logs = parseLogEntries(dataStr)
-            clearAll()
-            for (log in logs) {
-                addLogEntry(log)
-            }
-            _connected.value = false
+    private fun stopScan() {
+        scanCallback?.let {
+            scanner.stopScan(it)
+            scanCallback = null
         }
     }
 
-    fun refreshLogs() {
-        viewModelScope.launch {
-            // connect()
-        }
-    }
+    @SuppressLint("MissingPermission")
+    private fun connectToDevice(device: BluetoothDevice) {
+        viewModelScope.launch(Dispatchers.IO) {
+            Timber.i("Connecting to ${device.address}")
+            manager.connect(device)
+                .useAutoConnect(false)
+                .retry(3, 100)
+                .done {
+                    println("Connected with autoConnect!")
+                }
+                .fail { _, status -> println("Failed with status $status") }
+                .enqueue()
 
-    fun addLogEntry(entry: LogEntry) {
-        viewModelScope.launch {
-            _logs.value = _logs.value + entry
-        }
-    }
-
-    fun clearAll() {
-        viewModelScope.launch {
-            _logs.value = emptyList()
+            // Use onEach for continuous collection
+            manager.logs.onEach { logData ->
+                logData?.let {
+                    // Using Timber for logging consistency
+                    println("📥 Logs from ESP32: $it")
+                }
+            }.launchIn(viewModelScope) // Launch in the viewModelScope
         }
     }
 
     @SuppressLint("MissingPermission")
     fun disconnect() {
-        advertiser.stopGattServer ()
-        _connected.value = false
-    }
-}
-
-class LocalDateTimeDeserializer : JsonDeserializer<LocalDateTime> {
-    @SuppressLint("NewApi")
-    override fun deserialize(
-        json: JsonElement?,
-        typeOfT: Type?,
-        context: JsonDeserializationContext?
-    ): LocalDateTime {
-        val arr =
-            json?.asJsonArray ?: throw JsonParseException("Expected JSON array for LocalDateTime")
-        val year = arr[0].asInt
-        val month = arr[1].asInt
-        val day = arr[2].asInt
-        val hour = arr[3].asInt
-        val minute = arr[4].asInt
-        val second = arr[5].asInt
-        return LocalDateTime.of(year, month, day, hour, minute, second)
-    }
-}
-
-@SuppressLint("NewApi")
-fun List<LogEntry>.toSafeList(): List<LogEntry> = this.map {
-    it.copy(
-        activityName = it.activityName,
-        message = it.message,
-        statusCode = it.statusCode
-    )
-}
-
-@SuppressLint("NewApi")
-fun parseLogEntries(jsonString: String): List<LogEntry> {
-    val gson = GsonBuilder()
-        .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeDeserializer())
-        .create()
-
-    val listType = object : TypeToken<List<LogEntry>>() {}.type
-
-    if (Utils.isValidJson(jsonString).not()) {
-        println("Invalid JSON format:")
-        println("JSON String: $jsonString")
-        return emptyList()
+        manager.disconnect().enqueue()
     }
 
-    val logEntries: List<LogEntry> = gson.fromJson(jsonString, listType)
-    return logEntries.sortedByDescending { it.datetime }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-private fun sampleLogs(): List<LogEntry> {
-    val base = LocalDateTime.of(2025, 10, 29, 17, 7, 47)
-    return List(30) { i ->
-        LogEntry(
-            datetime = base.plusSeconds(i.toLong() * 37L),
-            activityName = "Setting Time",
-            message = "Time set to 10/29 ${5 + (i / 60)}:${(7 + i) % 60} PM for watch CASIO GW-B5600, mode: MANUAL${if (i % 3 == 0) " WITH DISPLAY" else ""}",
-            statusCode = "TIME_SET"
-        )
+    @SuppressLint("MissingPermission")
+    override fun onCleared() {
+        super.onCleared()
+        stopScan()
+        disconnect()
     }
 }
