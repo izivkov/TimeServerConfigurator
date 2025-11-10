@@ -1,18 +1,18 @@
 import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothDevice
-import android.media.MediaDrm
-import android.util.JsonReader
-import android.util.JsonToken
-import android.util.JsonWriter
-import androidx.compose.ui.input.key.type
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
+import com.google.gson.FieldNamingPolicy
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
 import com.google.gson.JsonSyntaxException
-import com.google.gson.TypeAdapter
 import com.google.gson.annotations.SerializedName
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +26,7 @@ import no.nordicsemi.android.support.v18.scanner.ScanSettings
 import org.avmedia.loggerble.LoggerBleManager
 import org.avmedia.timeserverconfigurator.Utils
 import timber.log.Timber
-import java.io.IOException
+import java.lang.reflect.Type
 import java.time.LocalDateTime
 
 data class LogEntry(
@@ -91,6 +91,7 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     var accumulatedData = ""
+
     @SuppressLint("MissingPermission")
     private fun connectToDevice(device: BluetoothDevice) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -108,7 +109,6 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
             manager.logs.onEach { logData ->
                 logData?.let {
                     // Using Timber for logging consistency
-                    println("📥 Logs from ESP32: $it")
                     accumulatedData += it
                     if (Utils.isValidJson(accumulatedData)) {
                         onDataReceived(accumulatedData)
@@ -119,22 +119,53 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    class LocalDateTimeDeserializer : JsonDeserializer<LocalDateTime> {
+        @SuppressLint("NewApi")
+        override fun deserialize(
+            json: JsonElement?,
+            typeOfT: Type?,
+            context: JsonDeserializationContext?
+        ): LocalDateTime {
+            val arr =
+                json?.asJsonArray
+                    ?: throw JsonParseException("Expected JSON array for LocalDateTime")
+            val year = arr[0].asInt
+            val month = arr[1].asInt
+            val day = arr[2].asInt
+            val hour = arr[3].asInt
+            val minute = arr[4].asInt
+            val second = arr[5].asInt
+            return LocalDateTime.of(year, month, day, hour, minute, second)
+        }
+    }
+    @SuppressLint("NewApi")
     private fun onDataReceived(jsonString: String) {
         Timber.d("Attempting to parse JSON log object: $jsonString")
-        val gson = Gson()
+
+        val gson = GsonBuilder()
+            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+            .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeDeserializer())
+            .create()
 
         try {
-            // Parse a single LogEntry object instead of a list
             val newLog: LogEntry = gson.fromJson(jsonString, LogEntry::class.java)
 
-            // Append the new log to the existing list in _logs
+            // Create an updated list by adding the new log and then sorting it.
             val updatedLogs = _logs.value.toMutableList().apply {
                 add(newLog)
+                // Sort the entire list by the 'datetime' field in descending (reverse) order.
+                sortByDescending { it.datetime }
+
+                // Limit to 20 entries
+                if (size > 20) {
+                    removeLast()
+                }
             }
 
+            // Update the StateFlow with the new, sorted list.
             _logs.value = updatedLogs
 
-            Timber.i("Successfully parsed and added new log: ${newLog.activity_name}")
+            Timber.i("Successfully parsed and added new log: ${newLog.activityName}")
 
         } catch (e: JsonSyntaxException) {
             Timber.e(e, "Failed to parse JSON string: $jsonString")
@@ -155,3 +186,18 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
         disconnect()
     }
 }
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun sampleLogs(): List<LogEntry> {
+    val base = LocalDateTime.of(2025, 10, 29, 17, 7, 47)
+    return List(30) { i ->
+        LogEntry(
+            datetime = base.plusSeconds(i.toLong() * 37L),
+            activityName = "Setting Time",
+            message = "Time set to 10/29 ${5 + (i / 60)}:${(7 + i) % 60} PM for watch CASIO GW-B5600, mode: MANUAL${if (i % 3 == 0) " WITH DISPLAY" else ""}",
+            statusCode = "TIME_SET"
+        )
+    }
+}
+

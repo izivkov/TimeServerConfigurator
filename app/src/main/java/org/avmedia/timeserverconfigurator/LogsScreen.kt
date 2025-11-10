@@ -39,8 +39,6 @@ fun LogsScreen(
     modifier: Modifier = Modifier,
 ) {
     val logs by logsViewModel.logs.collectAsState()
-    val connected by logsViewModel.connected.collectAsState()
-
     val listState = rememberLazyListState()
 
     Box(
@@ -59,43 +57,6 @@ fun LogsScreen(
                     LogRow(entry)
                 }
             }
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(horizontal = 16.dp, vertical = 8.dp),
-//                horizontalArrangement = Arrangement.End,
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                Button(
-//                    onClick = { logsViewModel.refreshLogs() },
-//                    enabled = !connected, // disabled when connected
-//                ) {
-//                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
-//                    Spacer(modifier = Modifier.width(8.dp))
-//                    Text("Refresh")
-//                }
-//            }
-        }
-
-        if (logs.isEmpty() && connected) {
-            val infiniteTransition = rememberInfiniteTransition()
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 700),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "BlinkAlpha"
-            )
-            Text(
-                text = "Collecting Logs...",
-                color = Color.Red,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 80.dp)
-                    .alpha(alpha)
-            )
         }
     }
 }

@@ -33,7 +33,6 @@ class LoggerBleManager(
 
         override fun onDeviceConnected(device: BluetoothDevice) {
             Timber.d("Connected to device: ${device.address}")
-            // You can start enabling notifications here if not done already
             _connected.value = true
         }
 
@@ -43,12 +42,6 @@ class LoggerBleManager(
 
         override fun onDeviceReady(device: BluetoothDevice) {
             println("onDeviceReady")
-
-            writeCharacteristic(
-                logCharacteristic,
-                "START".toByteArray(),
-                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            ).enqueue()
 
         }
 
