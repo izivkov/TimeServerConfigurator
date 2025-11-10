@@ -57,16 +57,16 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Using the 'nordic-ble' alias from your catalog which should point to ble-ktx
-    implementation(libs.nordic.ble)
     // Using the coroutines aliases from your catalog
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
     implementation(libs.timber)
 
     implementation(libs.androidx.material.icons.extended)
-    implementation("com.google.code.gson:gson:2.8.9")
+    implementation(libs.gson) // Use the new alias for Gson
 
-    // The hardcoded dependencies that were here have been removed.
-    // The catalog entries above (libs.nordic.ble, libs.coroutines.core, etc.) now handle them.
+    implementation(libs.nordic.ble)
+    implementation(libs.nordic.scanner) // Use the new alias for the scanner
+
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 }
