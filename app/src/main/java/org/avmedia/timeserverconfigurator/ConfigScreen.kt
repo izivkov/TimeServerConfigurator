@@ -182,6 +182,25 @@ fun ConfigScreen(
                     shape = CircleShape
                 )
         )
+        Text(
+            text = "v" + BuildConfig.VERSION_NAME,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier
+                .align(Alignment.BottomStart) // Position in the lower-left
+                .padding(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun getAppVersionName(context: Context): String? {
+    return try {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        packageInfo.versionName
+    } catch (e: Exception) {
+        // In case of an error, return a fallback string
+        "N/A"
     }
 }
 

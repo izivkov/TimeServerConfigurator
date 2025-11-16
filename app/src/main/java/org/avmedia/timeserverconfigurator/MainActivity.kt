@@ -5,13 +5,14 @@ import ConfigViewModel
 import LogsScreen
 import LogsViewModel
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,18 +24,22 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.avmedia.timeserverconfigurator.ui.theme.TimeServerConfiguratorTheme
-
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.ui.graphics.vector.ImageVector
+import timber.log.Timber
 
 @RequiresApi(Build.VERSION_CODES.O)
 class MainActivity : ComponentActivity() {
@@ -58,7 +63,7 @@ class MainActivity : ComponentActivity() {
             }
             if (modelClass.isAssignableFrom(LogsViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return LogsViewModel(context.applicationContext as Application ) as T
+                return LogsViewModel(context.applicationContext as Application) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
@@ -72,11 +77,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             CheckPermissions {
 
-                logsViewModel.startScan()
-
-                configViewModel.connect {
-                    onConfigDisconnect()
-                }
+                configViewModel.connect {}
+                StartScan()
 
                 TimeServerConfiguratorTheme {
                     var selectedRoute by rememberSaveable { mutableStateOf(BottomNavItem.Settings.route) }
@@ -118,16 +120,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("MissingPermission")
+    @Composable
+    fun StartScan() {
+        LaunchedEffect(Unit) {
+            logsViewModel.connected
+                // Only react on connection state changes
+                .onEach { isConnected: Boolean ->
+                    if (isConnected) {
+                        // If we are connected, ensure the scan is stopped.
+                        Timber.i("MainActivity: Detected connection, stopping scan.")
+                        logsViewModel.stopScan()
+                    } else {
+                        // If we are not connected, start a new scan.
+                        Timber.i("MainActivity: Detected disconnection, starting scan.")
+                        logsViewModel.startScan()
+                    }
+                }
+                .launchIn(lifecycleScope) // Launch in the Activity's lifecycle scope.
+        }
+    }
+
     override fun onResume() {
         super.onResume()
     }
 
-    @SuppressLint("MissingPermission")
-    override fun onDestroy() {
-        super.onDestroy()
-        logsViewModel.disconnect()
-        configViewModel.disconnect()
+    override fun onPause() {
+        super.onPause()
     }
 
     private fun onConfigDisconnect() {

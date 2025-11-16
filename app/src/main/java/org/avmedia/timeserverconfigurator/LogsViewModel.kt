@@ -33,7 +33,8 @@ data class LogEntry(
     val datetime: LocalDateTime,
     @SerializedName("activity_name") val activityName: String?,
     val message: String?,
-    @SerializedName("status_code") val statusCode: String?
+    @SerializedName("status_code") val statusCode: String?,
+    val watchName: String
 )
 
 class LogsViewModel(app: Application) : AndroidViewModel(app) {
@@ -50,7 +51,6 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
 
     @SuppressLint("MissingPermission")
     fun startScan() {
-        // Stop any previous scan
         stopScan()
 
         val settings = ScanSettings.Builder()
@@ -82,8 +82,19 @@ class LogsViewModel(app: Application) : AndroidViewModel(app) {
         scanner.startScan(null, settings, scanCallback!!)
     }
 
+    fun observeConnection () {
+        // Observe the connected StateFlow and call callbacks on change
+        viewModelScope.launch {
+            manager.connected.collect { isConnected ->
+                if (isConnected) {
+                } else {
+                }
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    private fun stopScan() {
+    fun stopScan() {
         scanCallback?.let {
             scanner.stopScan(it)
             scanCallback = null
@@ -196,6 +207,7 @@ private fun sampleLogs(): List<LogEntry> {
             datetime = base.plusSeconds(i.toLong() * 37L),
             activityName = "Setting Time",
             message = "Time set to 10/29 ${5 + (i / 60)}:${(7 + i) % 60} PM for watch CASIO GW-B5600, mode: MANUAL${if (i % 3 == 0) " WITH DISPLAY" else ""}",
+            watchName = "CASIO GW-B5600",
             statusCode = "TIME_SET"
         )
     }

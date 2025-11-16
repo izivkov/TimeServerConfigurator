@@ -42,7 +42,6 @@ class LoggerBleManager(
 
         override fun onDeviceReady(device: BluetoothDevice) {
             println("onDeviceReady")
-
         }
 
         override fun onDeviceDisconnecting(device: BluetoothDevice) {
@@ -106,7 +105,6 @@ class LoggerBleManager(
                 .enqueue()
         }
     }
-
 
     override fun onServicesInvalidated() {
         // Clear the reference when the device disconnects

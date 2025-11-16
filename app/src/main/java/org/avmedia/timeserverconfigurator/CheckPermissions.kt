@@ -19,25 +19,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import timber.log.Timber
+import java.util.Collections
+
+fun getRequiredPermissions(): Array<String> {
+    return mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION).apply {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            addAll(
+                listOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                )
+            )
+        }
+    }.toTypedArray()
+}
 
 @Composable
 fun CheckPermissions(onPermissionsGranted: @Composable () -> Unit) {
     val context = LocalContext.current
     val activity = context as Activity
 
-    fun getRequiredPermissions(): Array<String> {
-        return mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION).apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                addAll(
-                    listOf(
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.BLUETOOTH_CONNECT,
-                        Manifest.permission.BLUETOOTH_ADVERTISE,
-                    )
-                )
-            }
-        }.toTypedArray()
-    }
+//    fun getRequiredPermissions(): Array<String> {
+//        return mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION).apply {
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//                addAll(
+//                    listOf(
+//                        Manifest.permission.BLUETOOTH_SCAN,
+//                        Manifest.permission.BLUETOOTH_CONNECT,
+//                        Manifest.permission.BLUETOOTH_ADVERTISE,
+//                    )
+//                )
+//            }
+//        }.toTypedArray()
+//    }
 
     val initialPermissions = getRequiredPermissions()
 
